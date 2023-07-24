@@ -28,7 +28,21 @@ Other than the recorded event energies, the event grades give important informat
 
 A novelty of our model is that it makes use of data on the photons' grades, yet still has a tractable likelihood. The term "tractable likelihood" is a term used in statistical modelling to refer to a model for which it is possible to compute how likely it was that the observed data was produced by a given set of parameters. Davis (2001) describes a model of pile-up that is tractable, but does not make use of grade information. Tamba et al (2022) conduct a spectral analysis that accounts for pile-up and uses grade information, but they do not use a model with a tractable likelihood and instead use a simulation-based method.
 
-To design a spectral model that accounts for pile-up, we assume that there is a maximum number of photons, $$\nu$$, that may arrive in any one time-interval. We observe that as this maximum number of photons per time-interval increases, the posterior of the spectral parameters changes and its coverage improves.
+# Preliminary Results
+
+I won't provide any details on the mathematical underpinnings of the model, but skip straight to comparing the model to a traditional spectral model that does not account for pileup. To investigate how well our model performs, we can use simulated data for which we know the true values of the parameters. Here, we simulate data using $$\alpha_1 = 1.28, \alpha_2=0.18, \beta=2.00$$ and $$\mu=3.00$$. We then infer the posterior distribution of the parameters using our pile-up model and compare the results to the posterior produced by a spectral model that does not accout for pile-up.
+
+The figure below shows the inferred parameters, when a traditional model that does not account for pile-up is used. The marginal posteriors for $$\alpha_1, \alpha_2$$ and $$\beta$$ are all well-off!
+
+![Inferred Parameters when Pile-up is not accounted for](/assets/images/kde_4d_pileup_not_accounted.png)
+
+By contrast, the figure below shows the inferred parameters when our model, which accounts for pile-up, is used. The mean of the posterior distribution is a lot closer to the true values of the parameters.
+
+![Inferred Parameters when Pile-up is accounted for](/assets/images/kde_4d_pileup_accounted.png)
+
+# Closing Remarks
+
+The aim of this post has been to provide a non-technical introduction to Bayesian modelling of photon pile-up. I'm sorry to have missed out all of the mathematical details, but I hope to publish that information when the project is complete!
 
 # References
 
