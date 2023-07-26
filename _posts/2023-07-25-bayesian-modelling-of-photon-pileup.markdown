@@ -20,7 +20,7 @@ Simulating photons from this spectrum and simulating the effect of pile-up produ
 
 ![Observed Spectrum](/assets/images/chnnl_marg_pos.png)
 
-By "event", we refer to one or more photons arriving at the telescope's detector during a single time interval. When a photon hits the detector's surface, it interacts with the detector material, causing electrons to be released. These electrons produce a *charge cloud*. A *grade* is a label given to an event, which categories the shape of its charge cloud.
+By "event", we refer to one or more photons arriving at the telescope's detector during a single time interval. When a photon hits the detector's surface, it interacts with the detector material, causing electrons to be released. These electrons produce a *charge cloud*. A *grade* is a label given to an event, which categorizes the shape of its charge cloud.
 
 Other than the recorded event energies, the event grades give important information as to how likely it is that the event consists of two or more photons. There are two ways that grades provide information as to whether an event is piled. The first is that a photon's grade depends on its energy. The second has to do with a phenomenon called *grade migration*. When multiple photons hit the detector in the same time-interval, the charge clouds attributable to the individual photons will combine to form a single charge cloud; the grade of this resulting charge cloud depends stochastically on the grades that would have been assigned to the charge clouds of the individual photons, had these individual photons not interacted. In particular, it's possible that two photons with the same grade will combine to be recorded with an entirely different grade; we call this a case of grade migration.
 
