@@ -28,7 +28,7 @@ A novelty of our model is that it makes use of data on the photons' grades, yet 
 
 # Preliminary Results
 
-I won't provide any details on the mathematical underpinnings of the model, but skip straight to comparing the model to a traditional spectral model that does not account for pile-up. To investigate how well our model performs, we can use simulated data for which we know the true values of the parameters. Here, we simulate data using $$\alpha_1 = 1.28, \alpha_2=0.18, \beta=2.00$$ and $$\mu=3.00$$. We then infer the posterior distribution of the parameters using our pile-up model and compare the results to the posterior produced by a spectral model that does not accout for pile-up.
+I won't provide any details on the mathematical underpinnings of the model, but skip straight to comparing the model to a traditional spectral model that does not account for pile-up. To investigate how well our model performs, we can use simulated data for which we know the true values of the parameters. Here, we simulate data using $$\alpha_1 = 1.28, \alpha_2=0.18, \beta=2.00$$ and $$\mu=3.00$$. We then infer the posterior distribution of the parameters using our pile-up model and compare the results to the posterior produced by a spectral model that does not account for pile-up.
 
 The figure below shows the inferred parameters, when a traditional model that does not account for pile-up is used. The marginal posteriors for $$\alpha_1, \alpha_2$$ and $$\beta$$ are all well-off!
 
