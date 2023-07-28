@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Bayesian Modelling of Photon Pile-up"
-date: 2023-07-25 10:49:00 +0100
+date: 2023-07-28 16:41:00 +0100
 categories: jekyll update
 ---
 I recently presented a poster on ongoing work on Bayesian modelling of photon pile-up at the conference "Statistical Challenges in Modern Astronomy VIII" at Penn State University in the USA. The aim of the project is to design a *Bayesian* model of the *spectrum* of a high-energy astronomical source, which takes into account a phenomenon called *pile-up*. The model is designed for *X-ray* astronomy data gathered by the *Chandra X-Ray Observatory*.
