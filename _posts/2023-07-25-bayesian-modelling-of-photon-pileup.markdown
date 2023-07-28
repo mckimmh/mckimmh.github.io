@@ -44,13 +44,9 @@ I won't provide any details on the mathematical underpinnings of the model, but 
 
 As an aside, because the data-generating process is noisy and we have a relatively small amount of data, even for a perfect model, the posterior would not necessarily be centred exactly at the true value of the model's variables. So in analysing how well our model performs, it can help to look at the model's *coverage*. For a model with good coverage, the 95% [credible region](https://en.wikipedia.org/wiki/Credible_interval) contains the true value of the unknown parameter 95% of the time. A 95% credible region is the region within which, according to the posterior distribution, the unknown parameter value falls with a 95% probability.
 
-The figure below shows the inferred parameters, when a traditional model that does not account for pile-up is used. The marginal posteriors for $$\alpha_1, \alpha_2$$ and $$\beta$$ are all well-off!
+The figure below visualises, for a particular simulated data-set, the posterior distribution of our model compared to a traditional model that does not account for pileup. For the model that does not account for pile-up, the posterior (shown in orange) is far away from the true value of the parameters, shown by a dashed black vertical line. For our model, which accounts for pile-up, the posterior (shown in blue) is a lot closer to the true value of the parameters.
 
-![Inferred Parameters when Pile-up is not accounted for](/assets/images/kde_4d_pileup_not_accounted.png)
-
-By contrast, the figure below shows the inferred parameters when our model, which accounts for pile-up, is used. The mean of the posterior distribution is a lot closer to the true values of the parameters.
-
-![Inferred Parameters when Pile-up is accounted for](/assets/images/kde_4d_pileup_accounted.png)
+![Posterior Distribution](/assets/images/piled_unpiled_dens.png)
 
 # Closing Remarks
 
