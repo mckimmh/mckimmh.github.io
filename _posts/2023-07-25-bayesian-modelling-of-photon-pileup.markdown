@@ -26,7 +26,7 @@ Failing to account for pile-up causes inaccuracies in the spectral analysis. The
 
 Simulating photons from this spectrum and simulating the effect of pile-up produces the observed spectrum shown below. We see here that there are three effects of pile-up. Firstly, the spectrum hardens, which is to say that more high-energy photons are recorded. Secondly, the emission line widens, which is due to the pile-up of low-energy and emission-line-energy photons. Lastly, the emission line has a ''shadow'', which is due to the pile-up of two emission-line-energy photons. That is, the true energy of the emission line is 3.0, so there is a small bump in the observed spectrum approximately at 6.0, corresponding to the pile-up of two piled photons produced by the emission line.
 
-![Observed Spectrum](/assets/images/chnnl_marg_pos.png)
+![Observed Spectrum](/assets/images/energy_pos.png)
 
 # A Tractable Model that fully uses Grade information
 
