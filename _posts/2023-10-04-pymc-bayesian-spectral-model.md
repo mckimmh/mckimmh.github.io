@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Inference for a Bayesian Spectral Model with PyMC"
-date: 2023-08-16 09:00:00 +0100
+date: 2023-10-04 12:00:00 +0100
 categories: jekyll update
 ---
 
@@ -20,27 +20,35 @@ The data used for inferring the spectrum is the energies of individual X-ray pho
 
 The first modelling assumption is that the energy of photons is discrete. The range of possible energies is divided into a number of *bins* and it is assumed that a photon's energy can only take values equal to the midpoints of the bins. For example, the bins may be $$[0.30, 0.31], [0.31, 0.32], \dots, [10.99, 11.00]$$ (the units are keV), in which it is assumed that a photon may take a value in $$\{ 0.305, 0.315, \dots, 10.995 \}$$. For $$m$$ energy bins, we denote the energy bin mid-points by $$\mathcal{B}_1, \mathcal{B}_2, \dots, \mathcal{B}_m$$.
 
-As a consequence, the spectrum may be represented as a vector of length $$m$$. In particular, for $$\Delta_b$$ the width of the energy bins and $$\Delta_t$$ the length of time of the observation, the expected number of photons that reach the telescope, with energy in each bin, is:
+As a consequence, the spectrum may be represented as a vector of length $$m$$. In particular, the rate at which photons with energy in each bin arrive at the telescope is:
 
 $$
-\boldsymbol{\lambda}(\boldsymbol{\theta}) = \Delta_b \Delta_t \cdot (\lambda(\mathcal{B}_1, \boldsymbol{\theta}), \dots, \lambda(\mathcal{B}_m, \boldsymbol{\theta}))^T.
+\boldsymbol{\lambda}(\boldsymbol{\theta}) = (\lambda(\mathcal{B}_1, \boldsymbol{\theta}), \dots, \lambda(\mathcal{B}_m, \boldsymbol{\theta}))^T.
 $$
 
-INSERT PLOT OF EXAMPLE SPECTRUM
+An example of this represenation of a telescope is given in the figure below.
 
-Next, not all photons that reach the telescope are necessarily recorded. In fact, many of the photons are deflected and only a portion are actually recorded. The probability that a photon is recorded depends on its energy and may be represented by a vector $$\boldsymbol{\pi}_{\text{ARF}}$$. Thus the expected number of photons in each energy bin that are recorded by the detector is:
+![Spectrum](/assets/images/pymc_post/true_spec.png)
+
+Next, not all photons that reach the telescope are necessarily recorded. In fact, many of the photons are deflected and only a portion are actually recorded. The probability that a photon is recorded depends on its energy and may be represented by a vector $$\boldsymbol{\pi}_{\text{ARF}}$$. An example of a vector $$\boldsymbol{\pi}_{\text{ARF}}$$ is given below.
+
+![ARF](/assets/images/pymc_post/arf.png)
+
+Thus the rate at which photons in each energy bin are recorded by the detector is:
 
 $$
 \boldsymbol{\xi}(\boldsymbol{\theta}) = \boldsymbol{\lambda}(\boldsymbol{\theta}) \odot \boldsymbol{\pi}_{\text{ARF}}.
 $$
 
-INSERT PLOTS OF ARF AND SPECTRUM*ARF 
+Continuing the example, the figure below is a plot of this rate.
+
+![arrival_rate](/assets/images/pymc_post/arrival_rate.png) 
 
 We assume for this analysis that the source is a point. That is, it is very far away and is effectively a dot. As a consequence, all the incident photons would hit a single pixel, if it were not for something called the \emph{Points Spread Function} (PSF). The effect of the PSF is that there is some probability that photons are actually recorded in neighbouring pixels. For example, it may be the case that the photons are recorded on a 3 by 3 grid of pixels, with the probability of the photons hitting each pixel given by the following diagram.
 
-INSERT DIAGRAM REPRESENTING PSF
+![psf](/assets/images/pymc_post/psf.png)
 
-The PSF creates categories of pixels; all pixels in the same category have the same probability that a photon gets deflected into that pixel. Let $$\boldsymbol{\pi}_{\text{PSF}}$$ be a vector, with $$\boldsymbol{\pi}_{\text{PSF}}(k)$$ the probability that a photon is recorded in a *single* pixel of category $$k$$. For the example above, we have $$\boldsymbol{\pi}_{\text{PSF}} = [0.90, 0.015, 0.01]$$. For a single pixel in category $$k$$, the expected number of photons in each energy bin that are recorded by the detector is
+The PSF creates categories of pixels; all pixels in the same category have the same probability that a photon gets deflected into that pixel. Let $$\boldsymbol{\pi}_{\text{PSF}}$$ be a vector, with $$\boldsymbol{\pi}_{\text{PSF}}(k)$$ the probability that a photon is recorded in a *single* pixel of category $$k$$. For the example above, we have $$\boldsymbol{\pi}_{\text{PSF}} = [0.90, 0.015, 0.01]$$. For a single pixel in category $$k$$, the rate at which photons in each energy bin are recorded by the detector is
 
 $$
 \boldsymbol{\xi}^{(k)}(\boldsymbol{\theta}) = \boldsymbol{\pi}_{\text{PSF}}(k) \boldsymbol{\xi}(\boldsymbol{\theta}).
@@ -50,19 +58,22 @@ Photons are not actually recorded in energy bins. Instead, photons are recorded 
 
 INSERT IMAGE OF RMF
 
-The expected number of photons recorded in each energy channel, for a single pixel in category $$k$$, is then
+The rate at which photons are recorded in each energy channel, for a single pixel in category $$k$$, is then
 
 $$
 \boldsymbol{\mu}^{(k)} = \boldsymbol{M} \boldsymbol{\xi}^{(k)}.
 $$
 
-Finally, the actual number of photons recorded has a Poisson distribuiton:
+Finally, for $$\Delta_b$$ the width of the energy bins and $$\Delta_t$$ the length of time of the observation, the actual number of photons recorded has a Poisson distribuiton:
 
 $$
 \boldsymbol{Y}^{(k)} \sim \text{Poisson}(\boldsymbol{\mu}^{(k)}).
 $$
 
 INSERT SIMPLE FLOW CHART OF DEPENDENCIES
+
+------------------
+
 
 ## Defining the Model using PyMC
 
