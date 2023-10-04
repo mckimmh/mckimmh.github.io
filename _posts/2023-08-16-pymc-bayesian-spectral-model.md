@@ -7,37 +7,62 @@ categories: jekyll update
 
 ## Introduction
 
-The [PyMC homepage](https://www.pymc.io/welcome.html) describes PyMC as *"a probabilistic programming library for Python that allows users to build Bayesian models with a simple Python API and fit them using Markov chain Monte Carlo (MCMC) methods."*
-
-Post objectives:
-* Introduction to a Bayesian Spectral Model
-* Introduction to using PyMC via an example of a Bayesian Spectral Model
-* When to use `pm.Deterministic`
-* How to save samples to a `.nc` file and plot using a different script
+The [PyMC homepage](https://www.pymc.io/welcome.html) describes PyMC as *"a probabilistic programming library for Python that allows users to build Bayesian models with a simple Python API and fit them using Markov chain Monte Carlo (MCMC) methods"*. The objective of this post is to demonstrate how PyMC may be used to quite easily fit a Bayesian spectral model. In particular, it will provide:
+* An introduction to the Bayesian spectral model.
+* How to use PyMC to sample the model.
+* How to save samples to a `.nc` file so that sampling may be separated from downstream analyses, such as making kerndel density estimate plots.
 
 ## The Bayesian Spectral Model
 
-Let the vector of counts in each energy channel be $$\boldsymbol{Y} \in \mathbb{R}^n$$. Typically, $$n=1024$$. The parameters for the spectrum are given by a vector $$\boldsymbol{\theta} \in \mathbb{R}^d$$. The mid-point of the energy bins are $$\mathcal{B}_1, \mathcal{B}_2, \dots, \mathcal{B}_m$$. For example, there might be $$m=1070$$ energy bins, with mid-points $$0.305, 0.315, \dots, 10.995$$. The width of the energy bins is denoted by $$\delta$$, which in the above example is $$0.01$$. A function $$\lambda : \mathbb{R}^+ \times \mathbb{R}^d \rightarrow \mathbb{R}^+$$ maps pairs of energy-bins and spectral parameter vectors to the rate at which photons with energy in that bin are emitted from the source. The expected number of photons that reach the telescope, with energy in each bin, is thus given by a vector
+The spectrum of an astronomical source (such as a star) is the distribution of the energies of the photons emitted by the source. The spectrum may be used to learn about properties of the source such as its chemical composition, temperature and relative velocity. A spectral model specifies the rate $$\lambda$$ at which photons with energy $$e$$ are emitted from the source. Thus $$\lambda$$ is a function of $$e$$. For example, a simple model is $$\lambda(e) = \alpha \exp \{ - \beta e \}$$, in which case inference consists of learning the parameters $$\boldsymbol{\theta} = (\alpha, \beta)^T$$. We write $$\lambda(e, \boldsymbol{\theta})$$ for the spectrum, since it is a function of energy and the parameters $$\boldsymbol{\theta}$$.
 
-$$ \boldsymbol{\lambda}(\boldsymbol{\theta}) = \delta \cdot (\lambda(\mathcal{B}_1, \boldsymbol{\theta}), \dots, \lambda(\mathcal{B}_m, \boldsymbol{\theta}))^T. $$
+The data used for inferring the spectrum is the energies of individual X-ray photons, recorded by a space-based telescope. The difficulty is that the mechanism by which the photons is recorded is quite complicated.
 
-However, not all photons that reach the telescope are necessarily recorded. In fact, many of the photons are deflected and only a portion are actually recorded. The probability that a photon is recorded depends on its energy and may be represented by a vector $$\boldsymbol{d}$$. Thus the expected number of photons in each energy bin that are absorbed by the detector is:
+The first modelling assumption is that the energy of photons is discrete. The range of possible energies is divided into a number of *bins* and it is assumed that a photon's energy can only take values equal to the midpoints of the bins. For example, the bins may be $$[0.30, 0.31], [0.31, 0.32], \dots, [10.99, 11.00]$$ (the units are keV), in which it is assumed that a photon may take a value in $$\{ 0.305, 0.315, \dots, 10.995 \}$$. For $$m$$ energy bins, we denote the energy bin mid-points by $$\mathcal{B}_1, \mathcal{B}_2, \dots, \mathcal{B}_m$$.
 
-$$ \boldsymbol{\eta}(\boldsymbol{\theta}) = \boldsymbol{\lambda}(\boldsymbol{\theta}) \odot \boldsymbol{d}. $$
+As a consequence, the spectrum may be represented as a vector of length $$m$$. In particular, for $$\Delta_b$$ the width of the energy bins and $$\Delta_t$$ the length of time of the observation, the expected number of photons that reach the telescope, with energy in each bin, is:
 
-The detector records photons in energy channels. There is a probabilistic mapping from energy bins to channels, which may be presented as a matrix $$\boldsymbol{M}$$. The expected number of photons in each energy channel is therefore
+$$
+\boldsymbol{\lambda}(\boldsymbol{\theta}) = \Delta_b \Delta_t \cdot (\lambda(\mathcal{B}_1, \boldsymbol{\theta}), \dots, \lambda(\mathcal{B}_m, \boldsymbol{\theta}))^T.
+$$
 
-$$ \boldsymbol{\xi}(\boldsymbol{\theta}) = \boldsymbol{M} \boldsymbol{\eta}(\boldsymbol{\theta}).$$
+INSERT PLOT OF EXAMPLE SPECTRUM
 
-The actual number of photons recorded in each channel is Poisson distributed, with mean $$ \boldsymbol{\xi}(\boldsymbol{\theta}) $$. In full, the Bayesian Spectral model may be expressed as:
+Next, not all photons that reach the telescope are necessarily recorded. In fact, many of the photons are deflected and only a portion are actually recorded. The probability that a photon is recorded depends on its energy and may be represented by a vector $$\boldsymbol{\pi}_{\text{ARF}}$$. Thus the expected number of photons in each energy bin that are recorded by the detector is:
 
-$$ \boldsymbol{Y} \sim \text{Poisson}(\boldsymbol{\xi}(\boldsymbol{\theta})), $$
+$$
+\boldsymbol{\xi}(\boldsymbol{\theta}) = \boldsymbol{\lambda}(\boldsymbol{\theta}) \odot \boldsymbol{\pi}_{\text{ARF}}.
+$$
 
-$$ \boldsymbol{\xi}(\boldsymbol{\theta}) = \boldsymbol{M} \boldsymbol{\eta}(\boldsymbol{\theta}),$$
+INSERT PLOTS OF ARF AND SPECTRUM*ARF 
 
-$$ \boldsymbol{\eta}(\boldsymbol{\theta}) = \boldsymbol{\lambda}(\boldsymbol{\theta}) \odot \boldsymbol{d}, $$
+We assume for this analysis that the source is a point. That is, it is very far away and is effectively a dot. As a consequence, all the incident photons would hit a single pixel, if it were not for something called the \emph{Points Spread Function} (PSF). The effect of the PSF is that there is some probability that photons are actually recorded in neighbouring pixels. For example, it may be the case that the photons are recorded on a 3 by 3 grid of pixels, with the probability of the photons hitting each pixel given by the following diagram.
 
-$$ \boldsymbol{\lambda}(\boldsymbol{\theta}) = \delta \cdot (\lambda(\mathcal{B}_1, \boldsymbol{\theta}), \dots, \lambda(\mathcal{B}_m, \boldsymbol{\theta}))^T. $$
+INSERT DIAGRAM REPRESENTING PSF
+
+The PSF creates categories of pixels; all pixels in the same category have the same probability that a photon gets deflected into that pixel. Let $$\boldsymbol{\pi}_{\text{PSF}}$$ be a vector, with $$\boldsymbol{\pi}_{\text{PSF}}(k)$$ the probability that a photon is recorded in a *single* pixel of category $$k$$. For the example above, we have $$\boldsymbol{\pi}_{\text{PSF}} = [0.90, 0.015, 0.01]$$. For a single pixel in category $$k$$, the expected number of photons in each energy bin that are recorded by the detector is
+
+$$
+\boldsymbol{\xi}^{(k)}(\boldsymbol{\theta}) = \boldsymbol{\pi}_{\text{PSF}}(k) \boldsymbol{\xi}(\boldsymbol{\theta}).
+$$
+
+Photons are not actually recorded in energy bins. Instead, photons are recorded in energy channels. There is a probabilistic mapping from bins to channels. The channels don't have a unit; for a photon to be recorded in channel $$i$$ is to say that it was recorded in the channel with index $$i$$. The mapping from bins to channels is given by a matrix $$\boldsymbol{M}$$ called the RMF.
+
+INSERT IMAGE OF RMF
+
+The expected number of photons recorded in each energy channel, for a single pixel in category $$k$$, is then
+
+$$
+\boldsymbol{\mu}^{(k)} = \boldsymbol{M} \boldsymbol{\xi}^{(k)}.
+$$
+
+Finally, the actual number of photons recorded has a Poisson distribuiton:
+
+$$
+\boldsymbol{Y}^{(k)} \sim \text{Poisson}(\boldsymbol{\mu}^{(k)}).
+$$
+
+INSERT SIMPLE FLOW CHART OF DEPENDENCIES
 
 ## Defining the Model using PyMC
 
@@ -96,6 +121,4 @@ We can then sample from the posterior distribution of the model and save the rel
 
 ## Conclusion
 
-## DELETE LATER
 
-Another key function is [`pm.Deterministic`](https://www.pymc.io/projects/docs/en/stable/api/generated/pymc.Deterministic.html), which we use to define `continuum`, `line`, `spectrum`, `detected_spectrum` and `channel_mean`. This function creates a named determinstic variable. They are deterministic in the sense that they are a transformation of other variables and don't actually add any randomness themselves.
