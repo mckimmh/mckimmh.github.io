@@ -97,29 +97,43 @@ PyMC allows us to express this model with a few lines of code. First, we import 
     import pandas as pd
     import pymc as pm
 
-Suppose that we have loaded the channel counts as `counts`, the energy bins as `energy_bins_array`, the detection probability vector as `detection_prob_array` and the blurring matrix as `blurring_mat_array`, all as objects of type `np.ndarray`. In addition, suppose that we have loaded the fixed parameters as a `pd.DataFrame` with column `value` and indices giving the names of the fixed parameters. We can then specify the model using:
+Suppose that we have loaded the channel counts as a `np.array` called `counts`, with a row for each PSF pixel category. Further, suppose that the energy bins have been loaded as `energy_bins`, $$\boldsymbol{\pi}_{\text{ARF}}$$ as `arf` and $$\boldsymbol{M}$$ as `rmf`, all as objects of type `np.ndarray`. In addition, suppose that we have loaded the fixed parameters as a `pd.DataFrame` with column `value` and indices giving the names of the fixed parameters. Parameters $$\Delta_b$$ and $$\Delta_t$$ are stored in variables `bin_width` and `observation_time`. We can then specify the model using:
 
     with pm.Model() as mdl:
 
-        # Fixed variables
+        # Fixed parameters
         alpha1 = pm.ConstantData("alpha1", params["value"]["alpha1"])
         alpha2 = pm.ConstantData("alpha2", params["value"]["alpha2"])
         sigma = pm.ConstantData("sigma", params["value"]["sigma"])
-        energy_bins = pm.ConstantData("energy_bins", energy_bins_array)
-        detection_prob = pm.ConstantData("detection_prob", detection_prob_array)
-        blurring_mat = pm.ConstantData("blurring_mat", blurring_mat_array.T)
+        mu = pm.ConstantData("mu", params["value"]["mu"])
+
+        energy_bins = pm.ConstantData("energy_bins", energy_bins)
+        arf = pm.ConstantData("arf", arf)   
+        rmf = pm.ConstantData("rmf", rmf)
+        psf = pm.ConstantData("psf", psf) 
 
         # Define priors
-        mu = pm.Uniform("mu", 3.0, 7.0)
         beta = pm.Uniform("beta", 0.01, 5.0)
 
+        # The true spectrum
         continuum = alpha1 * pm.math.exp(-beta * energy_bins)
         line = (alpha2 / (sigma * pm.math.sqrt(2.0*math.pi))) *  pm.math.exp(-0.5 * (((energy_bins-mu)/sigma)**2.0))
         spectrum = continuum + line
-        detected_spectrum = spectrum * detection_prob
-        channel_mean = pm.math.dot(blurring_mat,detected_spectrum)
 
-        y = pm.Poisson("y", mu=channel_mean, observed=counts)  
+        # Effects of the ARF, PSF and RMF
+        arrival_rate = spectrum * arf
+    
+        psf_rate0 = psf[0] * arrival_rate
+        psf_rate1 = psf[1] * arrival_rate
+        psf_rate2 = psf[2] * arrival_rate
+
+        chnnl_mean0 = bin_width * observation_time * pm.math.dot(rmf, psf_rate0)
+        chnnl_mean1 = bin_width * observation_time * pm.math.dot(rmf, psf_rate1)
+        chnnl_mean2 = bin_width * observation_time * pm.math.dot(rmf, psf_rate2)
+
+        y0 = pm.Poisson("y0", mu=chnnl_mean0, observed=counts[0,:])
+        y1 = pm.Poisson("y1", mu=chnnl_mean1, observed=counts[1,:])
+        y2 = pm.Poisson("y2", mu=chnnl_mean2, observed=counts[2,:]) 
 
 Let's go through some of the key steps in the above. Firstly, the line `with pm.Model() as mdl:` creates a new `Model` object and creates a context manager. The `Model` object is a container for the model's random variables and (because of the context manager) all the statements in the indented block are added to the model.
 
@@ -136,12 +150,14 @@ Lastly, the observed data is modelled as `y = pm.Poisson("y", mu=channel_mean, o
 We can then sample from the posterior distribution of the model and save the relevant samples to a file using:
 
     with mdl:
-        inf = pm.sample(chains=1, draws=n_samples)
+        inf = pm.sample(draws=draws)
+        inf.to_netcdf("samples.nc") 
 
-        samples = inf["posterior"][["mu", "beta"]].to_dataframe()
-        samples = samples.reset_index(drop=True)
+## Plotting the results
 
-        samples.to_csv("samples.csv")
+{:refdef: style="text-align: center;"}
+![results](/assets/images/pymc_post/kde_and_trace_pileup_not_accounted.png)
+{: refdef}
 
 ## Conclusion
 
