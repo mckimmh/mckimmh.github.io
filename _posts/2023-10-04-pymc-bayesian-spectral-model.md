@@ -28,11 +28,15 @@ $$
 
 An example of this represenation of a telescope is given in the figure below.
 
+{:refdef: style="text-align: center;"}
 ![Spectrum](/assets/images/pymc_post/true_spec.png)
+{: refdef}
 
 Next, not all photons that reach the telescope are necessarily recorded. In fact, many of the photons are deflected and only a portion are actually recorded. The probability that a photon is recorded depends on its energy and may be represented by a vector $$\boldsymbol{\pi}_{\text{ARF}}$$. An example of a vector $$\boldsymbol{\pi}_{\text{ARF}}$$ is given below.
 
+{:refdef: style="text-align: center;"}
 ![ARF](/assets/images/pymc_post/arf.png)
+{: refdef}
 
 Thus the rate at which photons in each energy bin are recorded by the detector is:
 
@@ -42,11 +46,15 @@ $$
 
 Continuing the example, the figure below is a plot of this rate.
 
-![arrival_rate](/assets/images/pymc_post/arrival_rate.png) 
+{:refdef: style="text-align: center;"}
+![arrival_rate](/assets/images/pymc_post/arrival_rate.png)
+{: refdef}
 
 We assume for this analysis that the source is a point. That is, it is very far away and is effectively a dot. As a consequence, all the incident photons would hit a single pixel, if it were not for something called the \emph{Points Spread Function} (PSF). The effect of the PSF is that there is some probability that photons are actually recorded in neighbouring pixels. For example, it may be the case that the photons are recorded on a 3 by 3 grid of pixels, with the probability of the photons hitting each pixel given by the following diagram.
 
+{:refdef: style="text-align: center;"}
 ![psf](/assets/images/pymc_post/psf.png)
+{: refdef}
 
 The PSF creates categories of pixels; all pixels in the same category have the same probability that a photon gets deflected into that pixel. Let $$\boldsymbol{\pi}_{\text{PSF}}$$ be a vector, with $$\boldsymbol{\pi}_{\text{PSF}}(k)$$ the probability that a photon is recorded in a *single* pixel of category $$k$$. For the example above, we have $$\boldsymbol{\pi}_{\text{PSF}} = [0.90, 0.015, 0.01]$$. For a single pixel in category $$k$$, the rate at which photons in each energy bin are recorded by the detector is
 
