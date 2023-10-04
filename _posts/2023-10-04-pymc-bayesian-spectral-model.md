@@ -50,13 +50,13 @@ Continuing the example, the figure below is a plot of this rate.
 ![arrival_rate](/assets/images/pymc_post/arrival_rate.png)
 {: refdef}
 
-We assume for this analysis that the source is a point. That is, it is very far away and is effectively a dot. As a consequence, all the incident photons would hit a single pixel, if it were not for something called the \emph{Points Spread Function} (PSF). The effect of the PSF is that there is some probability that photons are actually recorded in neighbouring pixels. For example, it may be the case that the photons are recorded on a 3 by 3 grid of pixels, with the probability of the photons hitting each pixel given by the following diagram.
+We assume for this analysis that the source is a point. That is, it is very far away and is effectively a dot. As a consequence, all the incident photons would hit a single pixel, if it were not for something called the *Point Spread Function* (PSF). The effect of the PSF is that there is some probability that photons are actually recorded in neighbouring pixels. For example, it may be the case that the photons are recorded on a 3 by 3 grid of pixels, with the probability of the photons hitting each pixel given by the following diagram.
 
 {:refdef: style="text-align: center;"}
 ![psf](/assets/images/pymc_post/psf.png)
 {: refdef}
 
-The PSF creates categories of pixels; all pixels in the same category have the same probability that a photon gets deflected into that pixel. Let $$\boldsymbol{\pi}_{\text{PSF}}$$ be a vector, with $$\boldsymbol{\pi}_{\text{PSF}}(k)$$ the probability that a photon is recorded in a *single* pixel of category $$k$$. For the example above, we have $$\boldsymbol{\pi}_{\text{PSF}} = [0.90, 0.015, 0.01]$$. For a single pixel in category $$k$$, the rate at which photons in each energy bin are recorded by the detector is
+The PSF creates categories of pixels; all pixels in the same category have the same probability that a photon gets deflected into that pixel. Let $$\boldsymbol{\pi}_{\text{PSF}}$$ be a vector, with $$\boldsymbol{\pi}_{\text{PSF}}(k)$$ the probability that a photon is recorded in a *single* pixel of category $$k$$, for $$k=1,\dots,K$$. For the example above, we have $$\boldsymbol{\pi}_{\text{PSF}} = [0.90, 0.015, 0.01]$$. For a single pixel in category $$k$$, the rate at which photons in each energy bin are recorded by the detector is
 
 $$
 \boldsymbol{\xi}^{(k)}(\boldsymbol{\theta}) = \boldsymbol{\pi}_{\text{PSF}}(k) \boldsymbol{\xi}(\boldsymbol{\theta}).
@@ -64,7 +64,10 @@ $$
 
 Photons are not actually recorded in energy bins. Instead, photons are recorded in energy channels. There is a probabilistic mapping from bins to channels. The channels don't have a unit; for a photon to be recorded in channel $$i$$ is to say that it was recorded in the channel with index $$i$$. The mapping from bins to channels is given by a matrix $$\boldsymbol{M}$$ called the RMF.
 
-INSERT IMAGE OF RMF
+{:refdef: style="text-align: center;"}
+![rmf](/assets/images/pymc_post/rmf_xray_data_primer.png)
+{: refdef}
+*Example of a RMF, taken from "An X-ray Data Primer: What I Wish I Knew when Starting X-Ray Astronomy".*
 
 The rate at which photons are recorded in each energy channel, for a single pixel in category $$k$$, is then
 
@@ -78,9 +81,11 @@ $$
 \boldsymbol{Y}^{(k)} \sim \text{Poisson}(\boldsymbol{\mu}^{(k)}).
 $$
 
-INSERT SIMPLE FLOW CHART OF DEPENDENCIES
+A graphical represenation of the model is given in the figure below.
 
-------------------
+{:refdef: style="text-align: center;"}
+![graphical_model](/assets/images/pymc_post/pileup_not_accounted_graph_model.png)
+{: refdef}
 
 
 ## Defining the Model using PyMC
