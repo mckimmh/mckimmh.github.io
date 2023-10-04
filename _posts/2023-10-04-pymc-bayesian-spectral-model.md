@@ -78,7 +78,7 @@ $$
 Finally, for $$\Delta_b$$ the width of the energy bins and $$\Delta_t$$ the length of time of the observation, the actual number of photons recorded has a Poisson distribuiton:
 
 $$
-\boldsymbol{Y}^{(k)} \sim \text{Poisson}(\boldsymbol{\mu}^{(k)}).
+\boldsymbol{Y}^{(k)} \sim \text{Poisson}(\Delta_b \Delta_t \boldsymbol{\mu}^{(k)}).
 $$
 
 A graphical represenation of the model is given in the figure below.
@@ -90,14 +90,20 @@ A graphical represenation of the model is given in the figure below.
 
 ## Defining the Model using PyMC
 
-PyMC allows us to express this model with a few lines of code. First, we import the following libraries:
+PyMC allows us to express this model with very readable code. First, we import the following libraries:
     
     import math
     import numpy as np
     import pandas as pd
     import pymc as pm
 
-Suppose that we have loaded the channel counts as a `np.array` called `counts`, with a row for each PSF pixel category. Further, suppose that the energy bins have been loaded as `energy_bins`, $$\boldsymbol{\pi}_{\text{ARF}}$$ as `arf` and $$\boldsymbol{M}$$ as `rmf`, all as objects of type `np.ndarray`. In addition, suppose that we have loaded the fixed parameters as a `pd.DataFrame` with column `value` and indices giving the names of the fixed parameters. Parameters $$\Delta_b$$ and $$\Delta_t$$ are stored in variables `bin_width` and `observation_time`. We can then specify the model using:
+Suppose that we have loaded the channel counts as a two-dimensional `np.array` called `counts`, with a row for each PSF pixel category. Further, suppose that the energy bins have been loaded as `energy_bins`, $$\boldsymbol{\pi}_{\text{ARF}}$$ as `arf` and $$\boldsymbol{M}$$ as `rmf`, all as objects of type `np.ndarray`. In addition, suppose that we have loaded the fixed parameters as a `pd.DataFrame` with column `value` and indices giving the names of the fixed parameters. Parameters $$\Delta_b$$ and $$\Delta_t$$ are stored in variables `bin_width` and `observation_time`. For this example, the functional form of the spectrum is
+
+$$
+\lambda(e) = \alpha_1 \exp \{ -\beta e \} + \alpha_2 N(e; \mu, \sigma^2),
+$$
+
+where $$N(e; \mu, \sigma^2)$$ is the density of a Normal distribution with mean $$\mu$$ and variance $$\sigma^2$$. We fix the parameters $$\alpha_1, \alpha_2, \mu$$ and $$\sigma$$ at their true values and try to infer $$\beta$$. We can then specify the model using:
 
     with pm.Model() as mdl:
 
@@ -139,15 +145,15 @@ Let's go through some of the key steps in the above. Firstly, the line `with pm.
 
 PyMC uses [PyTensor](https://pytensor.readthedocs.io/en/latest/) to translate models into fast machine code. The PyTensor library uses generalized array data structures called tensors. A feature of PyTensor is efficient symbolic differentiation, which is useful for MCMC simulation, since some algorithms require the derivative of the log posterior density. The function [`pm.ConstantData`](https://www.pymc.io/projects/docs/en/stable/api/generated/pymc.ConstantData.html#pymc.ConstantData) lets PyMC know that the variable is a constant. In particular, the `pm.ConstantData` function registers the `value` as a `TensorConstant`.
 
-The lines `mu = pm.Uniform("mu", 3.0, 7.0)` and `beta = pm.Uniform("beta", 0.01, 5.0)` define prior distributions for the two random variables in the model. The variables are given names, which match the names of the Python variables that they are assigned to.
+The line `beta = pm.Uniform("beta", 0.01, 5.0)` defines a prior distribution for the model's random variable. The random variable is given is a name, which matches the name of the Python variable that they are assigned to.
 
-The lines defining `continuum`, `line`, `spectrum`, `detected_spectrum` and `channel_mean` all describe determinstic transformations of the registered variables.
+The vector $$\boldsymbol{\lambda}$$ is given by `spectrum` and $$\boldsymbol{\xi}$$ by `arrival_rate`. The variables `psf_rate0`, `psf_rate1` and `psf_rate2` define the vectors $$\{ \boldsymbol{\xi}^{(k)} \}_{k=1}^K$$, where $$K=3$$. Finally, the variables `chnnl_mean0`, `chnnl_mean1`, `chnnl_mean2` represent the channel means: $$\{ \Delta_b \Delta_t \boldsymbol{\mu}^{(k)} \}_{k=1}^K$$.
 
-Lastly, the observed data is modelled as `y = pm.Poisson("y", mu=channel_mean, observed=counts)`. We call this stochsatic variable an *observed stochastic*. The `observed` argument passes the data to the variable.
+Lastly, the observed data is `y0`, `y1`, `y2`, with as `y0 = pm.Poisson("y0", mu=channel_mean0, observed=counts[0,:])` and `y1`, `y2` defined similarly. We call these stochastic variables *observed stochastics*. The `observed` argument passes the data to the variable.
 
 ## Sampling the Posterior Distribution
 
-We can then sample from the posterior distribution of the model and save the relevant samples to a file using:
+We can then sample from the posterior distribution of the model and save the relevant samples to a file. By default, PyMC generates multiple chains. The number of chains simulated depends on the number of cores on your machine; on my computer 4 chains are simulated in parallel. I had definded `draws` as $$25000$$, so in total $$10^5$$ samples were generated, which took 146 seconds.
 
     with mdl:
         inf = pm.sample(draws=draws)
@@ -155,10 +161,12 @@ We can then sample from the posterior distribution of the model and save the rel
 
 ## Plotting the results
 
+You can load the samples into a different file to analyse them (it helps to separate sampling and analysis of samples like this). The figure below shows  kernel density estimates of the posterior and and trace plots of the Markov chains simulated. 
+
 {:refdef: style="text-align: center;"}
 ![results](/assets/images/pymc_post/kde_and_trace_pileup_not_accounted.png)
 {: refdef}
 
 ## Conclusion
 
-
+Bayesian spectral models may be used to infer the parameters of the spectrum of an astronomical source, such as a star. PyMC is very helpful for quickly defining a model and sampling its posterior distribution. It's a good idea to have separate files for sampling the posterior distribution and analysing the samples.
