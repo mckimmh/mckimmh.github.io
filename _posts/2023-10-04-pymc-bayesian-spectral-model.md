@@ -7,18 +7,30 @@ categories: jekyll update
 
 ## Introduction
 
-The [PyMC homepage](https://www.pymc.io/welcome.html) describes PyMC as *"a probabilistic programming library for Python that allows users to build Bayesian models with a simple Python API and fit them using Markov chain Monte Carlo (MCMC) methods"*. The objective of this post is to demonstrate how PyMC may be used to quite easily fit a Bayesian spectral model. In particular, it will provide:
+The [PyMC homepage](https://www.pymc.io/welcome.html) describes PyMC as *"a probabilistic programming library for Python that allows users to build Bayesian models with a simple Python API and fit them using Markov chain Monte Carlo (MCMC) methods"*. The objective of this post is to demonstrate how PyMC may be used to fit a Bayesian spectral model. In particular, it will provide:
 * An introduction to the Bayesian spectral model.
 * How to use PyMC to sample the model.
-* How to save samples to a `.nc` file so that sampling may be separated from downstream analyses, such as making kerndel density estimate plots.
+* How to save samples to a `.nc` file so that sampling is separated from downstream analyses.
 
 ## The Bayesian Spectral Model
 
-The spectrum of an astronomical source (such as a star) is the distribution of the energies of the photons emitted by the source. The spectrum may be used to learn about properties of the source such as its chemical composition, temperature and relative velocity. A spectral model specifies the rate $$\lambda$$ at which photons with energy $$e$$ are emitted from the source. Thus $$\lambda$$ is a function of $$e$$. For example, a simple model is $$\lambda(e) = \alpha \exp \{ - \beta e \}$$, in which case inference consists of learning the parameters $$\boldsymbol{\theta} = (\alpha, \beta)^T$$. We write $$\lambda(e, \boldsymbol{\theta})$$ for the spectrum, since it is a function of energy and the parameters $$\boldsymbol{\theta}$$.
+The spectrum of an astronomical source (such as a star) is the distribution of the energies of the photons emitted by the source. The spectrum may be used to learn about properties of the source such as its chemical composition, temperature and relative velocity. A spectral model specifies the rate $$\lambda$$ at which photons with energy $$e$$ are emitted from the source. Thus $$\lambda$$ is a function of $$e$$. For example, a simple model is $$\lambda(e) = \alpha \exp \{ - \beta e \}$$, in which case inference consists of learning the parameters $$\boldsymbol{\theta} = (\alpha, \beta)^T$$. We write $$\lambda(e, \boldsymbol{\theta})$$ for the spectrum, since it is a function of energy and the parameters $$\boldsymbol{\theta}$$. In this post we consider a spectrum with functional form
 
-The data used for inferring the spectrum is the energies of individual X-ray photons, recorded by a space-based telescope. The difficulty is that the mechanism by which the photons is recorded is quite complicated.
+$$
+\lambda(e, \boldsymbol{\theta}) = \alpha_1 \exp \{ -\beta e \} + \alpha_2 N(e; \mu, \sigma^2),
+$$
 
-The first modelling assumption is that the energy of photons is discrete. The range of possible energies is divided into a number of *bins* and it is assumed that a photon's energy can only take values equal to the midpoints of the bins. For example, the bins may be $$[0.30, 0.31], [0.31, 0.32], \dots, [10.99, 11.00]$$ (the units are keV), in which it is assumed that a photon may take a value in $$\{ 0.305, 0.315, \dots, 10.995 \}$$. For $$m$$ energy bins, we denote the energy bin mid-points by $$\mathcal{B}_1, \mathcal{B}_2, \dots, \mathcal{B}_m$$.
+where $$N(e; \mu, \sigma^2)$$ is the density of a Normal distribution with mean $$\mu$$ and variance $$\sigma^2$$. The figure below shows a plot of this spectrum, for particular values of the parameters $$\boldsymbol{\theta}$$.
+
+{:refdef: style="text-align: center;"}
+![Spectrum](/assets/images/pymc_post/true_spec.png)
+
+*An example of a spectrum consisting of a continuum and a line.*
+{: refdef}
+
+The data used for inferring the spectrum is the energies of individual X-ray photons, recorded by a space-based telescope. The difficulty is that the mechanism by which the photons are recorded is quite complicated.
+
+The first modelling assumption is that the energy of photons is discrete. The range of possible energies is divided into a number of *bins* and it is assumed that a photon's energy can only take values equal to the midpoints of the bins. For example, the bins may be $$[0.30, 0.31], [0.31, 0.32], \dots, [10.99, 11.00]$$ (the units are keV), in which case it is assumed that a photon may take a value in $$\{ 0.305, 0.315, \dots, 10.995 \}$$. For $$m$$ energy bins, we denote the energy bin mid-points by $$\mathcal{B}_1, \mathcal{B}_2, \dots, \mathcal{B}_m$$.
 
 As a consequence, the spectrum may be represented as a vector of length $$m$$. In particular, the rate at which photons with energy in each bin arrive at the telescope is:
 
@@ -26,19 +38,13 @@ $$
 \boldsymbol{\lambda}(\boldsymbol{\theta}) = (\lambda(\mathcal{B}_1, \boldsymbol{\theta}), \dots, \lambda(\mathcal{B}_m, \boldsymbol{\theta}))^T.
 $$
 
-An example of this represenation of a telescope is given in the figure below.
-
-{:refdef: style="text-align: center;"}
-![Spectrum](/assets/images/pymc_post/true_spec.png)
-{: refdef}
-
 Next, not all photons that reach the telescope are necessarily recorded. In fact, many of the photons are deflected and only a portion are actually recorded. The probability that a photon is recorded depends on its energy and may be represented by a vector $$\boldsymbol{\pi}_{\text{ARF}}$$. An example of a vector $$\boldsymbol{\pi}_{\text{ARF}}$$ is given below.
 
 {:refdef: style="text-align: center;"}
 ![ARF](/assets/images/pymc_post/arf.png)
 {: refdef}
 
-Thus the rate at which photons in each energy bin are recorded by the detector is:
+Thus, for $$\odot$$ denoting element-wise multiplication, the rate at which photons in each energy bin are recorded by the detector is:
 
 $$
 \boldsymbol{\xi}(\boldsymbol{\theta}) = \boldsymbol{\lambda}(\boldsymbol{\theta}) \odot \boldsymbol{\pi}_{\text{ARF}}.
@@ -50,38 +56,40 @@ Continuing the example, the figure below is a plot of this rate.
 ![arrival_rate](/assets/images/pymc_post/arrival_rate.png)
 {: refdef}
 
-We assume for this analysis that the source is a point. That is, it is very far away and is effectively a dot. As a consequence, all the incident photons would hit a single pixel, if it were not for something called the *Point Spread Function* (PSF). The effect of the PSF is that there is some probability that photons are actually recorded in neighbouring pixels. For example, it may be the case that the photons are recorded on a 3 by 3 grid of pixels, with the probability of the photons hitting each pixel given by the following diagram.
+We assume for this analysis that the source is a point. That is, it is so far away that it shows up as a dot on the detector. As a consequence, all the incident photons would hit a single pixel, if it were not for something called the *Point Spread Function* (PSF). The effect of the PSF is that there is some probability that photons are actually recorded in neighbouring pixels. For example, it may be the case that the photons are recorded on a 3 by 3 grid of pixels, with the probability that a photon is deflected onto a particular pixel given by some probability.
+
+The following diagram gives an example of a possible PSF. Here, for a centred astronomical source, the probability that an incident photon hits the central pixel is 0.9. The probability that a photon is deflected onto the top pixel is 0.015, onto the top-right pixel is 0.01, etc.
 
 {:refdef: style="text-align: center;"}
 ![psf](/assets/images/pymc_post/psf.png)
 {: refdef}
 
-The PSF creates categories of pixels; all pixels in the same category have the same probability that a photon gets deflected into that pixel. Let $$\boldsymbol{\pi}_{\text{PSF}}$$ be a vector, with $$\boldsymbol{\pi}_{\text{PSF}}(k)$$ the probability that a photon is recorded in a *single* pixel of category $$k$$, for $$k=1,\dots,K$$. For the example above, we have $$\boldsymbol{\pi}_{\text{PSF}} = [0.90, 0.015, 0.01]$$. For a single pixel in category $$k$$, the rate at which photons in each energy bin are recorded by the detector is
+The PSF creates categories of pixels; all pixels in the same category have the same probability that a photon gets deflected into that pixel. Let $$\boldsymbol{\pi}_{\text{PSF}}$$ be a vector, with $$\boldsymbol{\pi}_{\text{PSF}}(k)$$ the probability that a photon is recorded in a *single* pixel of category $$k$$, for $$k=1,\dots,K$$ and $$K$$ the number of categories. For the example above, we have $$\boldsymbol{\pi}_{\text{PSF}} = [0.90, 0.015, 0.01]$$. For a single pixel in category $$k$$, the rate at which photons in each energy bin are recorded by the detector is
 
 $$
 \boldsymbol{\xi}^{(k)}(\boldsymbol{\theta}) = \boldsymbol{\pi}_{\text{PSF}}(k) \boldsymbol{\xi}(\boldsymbol{\theta}).
 $$
 
-Photons are not actually recorded in energy bins. Instead, photons are recorded in energy channels. There is a probabilistic mapping from bins to channels. The channels don't have a unit; for a photon to be recorded in channel $$i$$ is to say that it was recorded in the channel with index $$i$$. The mapping from bins to channels is given by a matrix $$\boldsymbol{M}$$ called the RMF.
+Another facet of the detector that we must take into account is that photons are not actually recorded in energy bins. Instead, a photon is recorded in an energy *channel*, which is proportional to the energy. There is a probabilistic mapping from bins to channels, expressed by a matrix $$\boldsymbol{M}$$ called the *RMF* (redistribution matrix file). Element $$\boldsymbol{M}_{i,j}$$ of the RMF matrix gives the probability that the photon is recorded in channel $$i$$, given that its energy is in bin $$j$$. The figure below visualises a typical RMF.
 
 {:refdef: style="text-align: center;"}
 ![rmf](/assets/images/pymc_post/rmf_xray_data_primer.png)
 {: refdef}
-*Example of a RMF, taken from "An X-ray Data Primer: What I Wish I Knew when Starting X-Ray Astronomy".*
+*Example of a RMF, taken from "An X-ray Data Primer: What I Wish I Knew when Starting X-Ray Astronomy". The probability of an energy bin being mapped to a channel is represented by colour.*
 
-The rate at which photons are recorded in each energy channel, for a single pixel in category $$k$$, is then
+The rate at which photons are recorded in each energy channel, for a single pixel in PSF category $$k$$, is then
 
 $$
 \boldsymbol{\mu}^{(k)} = \boldsymbol{M} \boldsymbol{\xi}^{(k)}.
 $$
 
-Finally, for $$\Delta_b$$ the width of the energy bins and $$\Delta_t$$ the length of time of the observation, the actual number of photons recorded has a Poisson distribuiton:
+Finally, for $$\Delta_b$$ the width of the energy bins and $$\Delta_t$$ the length of time of the observation, the actual number of photons recorded by a single pixel in PSF category $$k$$ has a Poisson distribution:
 
 $$
 \boldsymbol{Y}^{(k)} \sim \text{Poisson}(\Delta_b \Delta_t \boldsymbol{\mu}^{(k)}).
 $$
 
-A graphical represenation of the model is given in the figure below.
+A graphical representation of the model is given in the figure below.
 
 {:refdef: style="text-align: center;"}
 ![graphical_model](/assets/images/pymc_post/pileup_not_accounted_graph_model.png)
@@ -97,7 +105,7 @@ PyMC allows us to express this model with very readable code. First, we import t
     import pandas as pd
     import pymc as pm
 
-Suppose that we have loaded the channel counts as a two-dimensional `np.array` called `counts`, with a row for each PSF pixel category. Further, suppose that the energy bins have been loaded as `energy_bins`, $$\boldsymbol{\pi}_{\text{ARF}}$$ as `arf` and $$\boldsymbol{M}$$ as `rmf`, all as objects of type `np.ndarray`. In addition, suppose that we have loaded the fixed parameters as a `pd.DataFrame` with column `value` and indices giving the names of the fixed parameters. Parameters $$\Delta_b$$ and $$\Delta_t$$ are stored in variables `bin_width` and `observation_time`. For this example, the functional form of the spectrum is
+Suppose that we have loaded the channel counts as a two-dimensional `np.array` called `counts`, with a row for each PSF pixel category. Further, suppose that the mid-points of the energy bins have been loaded as `energy_bins`, $$\boldsymbol{\pi}_{\text{ARF}}$$ as `arf` and $$\boldsymbol{M}$$ as `rmf`, all as objects of type `np.ndarray`. In addition, suppose that we have loaded the fixed parameters as a `pd.DataFrame` with column `value` and indices giving the names of the fixed parameters. Parameters $$\Delta_b$$ and $$\Delta_t$$ are stored in variables `bin_width` and `observation_time`. For this example, the functional form of the spectrum is
 
 $$
 \lambda(e) = \alpha_1 \exp \{ -\beta e \} + \alpha_2 N(e; \mu, \sigma^2),
@@ -145,19 +153,21 @@ Let's go through some of the key steps in the above. Firstly, the line `with pm.
 
 PyMC uses [PyTensor](https://pytensor.readthedocs.io/en/latest/) to translate models into fast machine code. The PyTensor library uses generalized array data structures called tensors. A feature of PyTensor is efficient symbolic differentiation, which is useful for MCMC simulation, since some algorithms require the derivative of the log posterior density. The function [`pm.ConstantData`](https://www.pymc.io/projects/docs/en/stable/api/generated/pymc.ConstantData.html#pymc.ConstantData) lets PyMC know that the variable is a constant. In particular, the `pm.ConstantData` function registers the `value` as a `TensorConstant`.
 
-The line `beta = pm.Uniform("beta", 0.01, 5.0)` defines a prior distribution for the model's random variable. The random variable is given is a name, which matches the name of the Python variable that they are assigned to.
+The line `beta = pm.Uniform("beta", 0.01, 5.0)` defines a prior distribution for the model's random variable. The random variable is given a name, which matches the name of the Python variable that it is assigned to.
 
 The vector $$\boldsymbol{\lambda}$$ is given by `spectrum` and $$\boldsymbol{\xi}$$ by `arrival_rate`. The variables `psf_rate0`, `psf_rate1` and `psf_rate2` define the vectors $$\{ \boldsymbol{\xi}^{(k)} \}_{k=1}^K$$, where $$K=3$$. Finally, the variables `chnnl_mean0`, `chnnl_mean1`, `chnnl_mean2` represent the channel means: $$\{ \Delta_b \Delta_t \boldsymbol{\mu}^{(k)} \}_{k=1}^K$$.
 
-Lastly, the observed data is `y0`, `y1`, `y2`, with as `y0 = pm.Poisson("y0", mu=channel_mean0, observed=counts[0,:])` and `y1`, `y2` defined similarly. We call these stochastic variables *observed stochastics*. The `observed` argument passes the data to the variable.
+Lastly, the observed data is `y0`, `y1`, `y2`, with `y0 = pm.Poisson("y0", mu=channel_mean0, observed=counts[0,:])` and `y1`, `y2` defined similarly. We call these stochastic variables *observed stochastics*. The `observed` argument passes the data to the variable.
 
 ## Sampling the Posterior Distribution
 
-We can then sample from the posterior distribution of the model and save the relevant samples to a file. By default, PyMC generates multiple chains. The number of chains simulated depends on the number of cores on your machine; on my computer 4 chains are simulated in parallel. I had definded `draws` as $$25000$$, so in total $$10^5$$ samples were generated, which took 146 seconds.
+We can then sample from the posterior distribution of the model and save the relevant samples to a file. By default, PyMC generates multiple chains. The number of chains simulated depends on the number of cores on your machine; on my computer 4 chains are simulated in parallel. I had defined `draws` as $$25000$$, so in total $$10^5$$ samples were generated, which took 146 seconds.
 
     with mdl:
         inf = pm.sample(draws=draws)
         inf.to_netcdf("samples.nc") 
+
+The line `inf.to_netcdf("samples.nc")` saves the samples to a `.nc` file.
 
 ## Plotting the results
 
@@ -169,4 +179,8 @@ You can load the samples into a different file to analyse them (it helps to sepa
 
 ## Conclusion
 
-Bayesian spectral models may be used to infer the parameters of the spectrum of an astronomical source, such as a star. PyMC is very helpful for quickly defining a model and sampling its posterior distribution. It's a good idea to have separate files for sampling the posterior distribution and analysing the samples.
+Bayesian spectral models may be used to infer the parameters of the spectrum of an astronomical source, such as a star. PyMC is helpful for defining a model and sampling its posterior distribution. It's a good idea to have separate files for sampling the posterior distribution and analysing the samples.
+
+## References
+
+van Dyk, D. A. and Kang, H. (2004). Highly Structured Models for Spectral Analysis in High-Energy Astrophysics. Statistical Science, 19(2):275 – 293.
