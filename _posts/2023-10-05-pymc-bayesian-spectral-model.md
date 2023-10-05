@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Inference for a Bayesian Spectral Model with PyMC"
-date: 2023-10-04 12:00:00 +0100
+date: 2023-10-05 09:25:00 +0100
 categories: jekyll update
 ---
 
